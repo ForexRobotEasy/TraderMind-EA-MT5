@@ -1,0 +1,112 @@
+
+//+------------------------------------------------------------------+
+//|                                              TraderMind EA MT5  |
+//|                                   Developed by Forex Robot Easy Team |
+//|                                                forexroboteasy.com |
+//+------------------------------------------------------------------+
+
+// Define inputs
+input double lotSize = 0.01; // Maximum order size
+input int stopLossPips = 50; // Stop Loss in pips
+input int takeProfitPips = 100; // Take Profit in pips
+input int trailingStopPips = 30; // Trailing Stop in pips
+
+//+------------------------------------------------------------------+
+//|                                                   Expert start function |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+   // Check if the current symbol is USDCAD and the timeframe is H1
+   if (Symbol() == 'USDCAD' && Period() == PERIOD_H1)
+   {
+      // Calculate current market situation
+      double currentMarketSituation = CalculateMarketSituation();
+
+      // Calculate dynamic trading parameters
+      double stopLoss = CalculateStopLoss(currentMarketSituation);
+      double takeProfit = CalculateTakeProfit(currentMarketSituation);
+      double trailingStop = CalculateTrailingStop(currentMarketSituation);
+
+      // Place buy or sell order based on market situation
+      if (currentMarketSituation > 0)
+      {
+         OrderSend(Symbol(), OP_BUY, lotSize, Ask, 0, stopLoss, takeProfit, 'TraderMind EA MT5', MagicNumber(), 0, Green);
+      }
+      else if (currentMarketSituation < 0)
+      {
+         OrderSend(Symbol(), OP_SELL, lotSize, Bid, 0, stopLoss, takeProfit, 'TraderMind EA MT5', MagicNumber(), 0, Red);
+      }
+      
+      // Modify stop loss and take profit levels based on trailing stop
+      ModifyStopLossTakeProfit(trailingStop);
+   }
+}
+
+//+------------------------------------------------------------------+
+//|                                                   Calculate market situation |
+//+------------------------------------------------------------------+
+double CalculateMarketSituation()
+{
+   // TODO: Implement your neural network model to calculate market situation
+   // Return a value between -1 to 1 representing the market situation
+   return 0.5;
+}
+
+//+------------------------------------------------------------------+
+//|                                                   Calculate stop loss |
+//+------------------------------------------------------------------+
+double CalculateStopLoss(double marketSituation)
+{
+   // Calculate stop loss based on market situation
+   return NormalizeDouble(Bid - stopLossPips * _Point, _Digits);
+}
+
+//+------------------------------------------------------------------+
+//|                                                   Calculate take profit |
+//+------------------------------------------------------------------+
+double CalculateTakeProfit(double marketSituation)
+{
+   // Calculate take profit based on market situation
+   return NormalizeDouble(Bid + takeProfitPips * _Point, _Digits);
+}
+
+//+------------------------------------------------------------------+
+//|                                                   Calculate trailing stop |
+//+------------------------------------------------------------------+
+double CalculateTrailingStop(double marketSituation)
+{
+   // Calculate trailing stop based on market situation
+   return NormalizeDouble(trailingStopPips * _Point, _Digits);
+}
+
+//+------------------------------------------------------------------+
+//|                                                   Modify stop loss and take profit |
+//+------------------------------------------------------------------+
+void ModifyStopLossTakeProfit(double trailingStop)
+{
+   for (int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+      {
+         if (OrderSymbol() == Symbol() && OrderMagicNumber() == MagicNumber())
+         {
+            if (OrderType() == OP_BUY)
+            {
+               double newStopLoss = NormalizeDouble(OrderOpenPrice() + trailingStop, _Digits);
+               if (OrderStopLoss() < newStopLoss)
+               {
+                  OrderModify(OrderTicket(), OrderOpenPrice(), newStopLoss, OrderTakeProfit(), 0, Green);
+               }
+            }
+            else if (OrderType() == OP_SELL)
+            {
+               double newStopLoss = NormalizeDouble(OrderOpenPrice() - trailingStop, _Digits);
+               if (OrderStopLoss() > newStopLoss)
+               {
+                  OrderModify(OrderTicket(), OrderOpenPrice(), newStopLoss, OrderTakeProfit(), 0, Red);
+               }
+            }
+         }
+      }
+   }
+}
